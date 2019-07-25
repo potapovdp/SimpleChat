@@ -1,25 +1,25 @@
 package com.chat.server;
 
-import com.chat.client.ChatClient;
+import com.chat.client.ChatClientWindow;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 
 public class ChatUnits {
-    private ChatClient          client;
+    private ChatClientWindow client;
     private ObjectOutputStream  outObj;
     private ObjectInputStream   inObj;
     private Socket              socket;
 
-    public ChatUnits(ChatClient client, ObjectOutputStream outObj, ObjectInputStream inObj, Socket socket) {
+    public ChatUnits(ChatClientWindow client, ObjectOutputStream outObj, ObjectInputStream inObj, Socket socket) {
         this.client = client;
         this.outObj = outObj;
         this.inObj = inObj;
         this.socket = socket;
     }
 
-    public ChatClient getClient() {
+    public ChatClientWindow getClient() {
         return client;
     }
 
@@ -35,7 +35,7 @@ public class ChatUnits {
         return socket;
     }
 
-    public void setClient(ChatClient client) {
+    public void setClient(ChatClientWindow client) {
         this.client = client;
     }
 

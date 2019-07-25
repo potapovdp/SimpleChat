@@ -13,7 +13,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class ChatClient implements Serializable {
+public class ChatClientWindow implements Serializable {
     private transient JFrame                            frame;
     private transient JPanel                            panel;
     private transient JTextArea                         taCommon;
@@ -25,12 +25,12 @@ public class ChatClient implements Serializable {
     private transient ObjectInputStream                 inObj;
     private transient ObjectOutputStream                outObj;
 
-    private transient CopyOnWriteArrayList<ChatClient>  istClients;
+    private transient CopyOnWriteArrayList<ChatClientWindow>  istClients;
 
     private String                                      name;
     private boolean                                     isRunning;
 
-    ChatClient() {
+    ChatClientWindow() {
         super();
 
         //name of the current computer
@@ -42,7 +42,7 @@ public class ChatClient implements Serializable {
     }
 
     public static void main(String[] args) {
-        new ChatClient().startCllient();
+        new ChatClientWindow().startCllient();
     }
 
     private void startCllient() {
@@ -115,7 +115,7 @@ public class ChatClient implements Serializable {
         String shippedServiseStr = (serviseString.equals("")) ? "$$ServiceCode$$SimpleMassage" : serviseString;
 
         if (!shippedMsg.equals("")){
-            ChatMassage massage = new ChatMassage(this, shippedServiseStr, shippedMsg, new ArrayList<ChatClient>());
+            ChatMassage massage = new ChatMassage(this, shippedServiseStr, shippedMsg, new ArrayList<ChatClientWindow>());
 
             try {
                 outObj.writeObject(massage);
@@ -156,7 +156,6 @@ public class ChatClient implements Serializable {
                         }else if (massage.getServiseString().equals("$$ServiceCode$$CloseConnection")){
                             isRunning = false;
 
-                            //sendMassage("$$ServiceCode$$CloseConnection", "");
                             try {
                                 Thread.sleep(100);
                                 socket.close();

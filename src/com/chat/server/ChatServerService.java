@@ -1,6 +1,6 @@
 package com.chat.server;
 
-import com.chat.client.ChatClient;
+import com.chat.client.ChatClientWindow;
 import com.chat.client.ChatMassage;
 
 import javax.swing.*;
@@ -117,8 +117,8 @@ public class ChatServerService {
         }
     }
 
-    private ArrayList<ChatClient> getCllientsArray(){
-        ArrayList<ChatClient> clients = new ArrayList<>();
+    private ArrayList<ChatClientWindow> getCllientsArray(){
+        ArrayList<ChatClientWindow> clients = new ArrayList<>();
 
         for (ChatUnits unit : arrUnits) {
             clients.add(unit.getClient());
@@ -132,7 +132,7 @@ public class ChatServerService {
         ObjectOutputStream  outObj;
 
         Socket              socket;
-        ChatClient          client;
+        ChatClientWindow client;
         boolean             isRunning;
 
         InputListener(Socket s){
