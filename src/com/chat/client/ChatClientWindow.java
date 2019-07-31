@@ -1,75 +1,48 @@
 package com.chat.client;
 
+import com.chat.server.ChatUnits;
+import com.chat.server.ServiceCode;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
-import java.io.*;
-import java.net.InetAddress;
-import java.net.Socket;
-import java.net.UnknownHostException;
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class ChatClientWindow implements Serializable {
+public class ChatClientWindow {
     private transient JFrame                            frame;
     private transient JPanel                            panel;
     private transient JTextArea                         taCommon;
     private transient JTextArea                         taPrivate;
     private transient JButton                           bSend;
 
-    private transient Socket                            socket;
-
-    private transient ObjectInputStream                 inObj;
-    private transient ObjectOutputStream                outObj;
-
-    private transient CopyOnWriteArrayList<ChatClientWindow>  istClients;
-
-    private String                                      name;
     private boolean                                     isRunning;
+    private ChatClient                                  client;
+    private CopyOnWriteArrayList<ChatUnits>             listUnits;
 
-    ChatClientWindow() {
-        super();
-
-        //name of the current computer
-        name = "" + hashCode();
-        isRunning = true;
-        try {
-            name = InetAddress.getLocalHost().getHostName();//"" + hashCode();
-        }catch (UnknownHostException e) {e.printStackTrace();}
+    public ChatClientWindow(ChatClient client, CopyOnWriteArrayList<ChatUnits> listUnits) {
+        this.client = client;
+        this.listUnits = listUnits;
     }
 
-    public static void main(String[] args) {
-        new ChatClientWindow().startCllient();
+    public void startCllient() {
+        setupGUI();
     }
 
-    private void startCllient() {
-        setGUI();
+    private void setupGUI() {
 
-        try {
-            socket  = new Socket("192.168.1.63", 7171);
-            outObj  = new ObjectOutputStream(socket.getOutputStream());
-            inObj   = new ObjectInputStream(socket.getInputStream());
+        String strUnits = "Simple chat with ";
+        for (int i = 0; i < listUnits.size(); i++) {
+            if (i > 0)
+                strUnits += ", ";
 
-            sendNameToServer();
-
-            Thread inputListener = new Thread(new InputListener());
-            inputListener.start();
-
-        } catch (IOException e) {
-            e.printStackTrace();
+            strUnits += listUnits.get(i);
         }
-    }
 
-    private void sendNameToServer(){
-        sendMassage("$$ServiceCode$$NameOfClient", getName());
-    }
-
-    private void setGUI() {
-
-        frame = new JFrame("Simple chat [" + getName() + "]");
+        frame = new JFrame(strUnits);
         frame.addWindowListener(new WindowCloseListener());
 
         //Common text area
@@ -100,7 +73,7 @@ public class ChatClientWindow implements Serializable {
         bSend.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                sendMassage("","");
+                sendMassage(null,"");
             }
         });
 
@@ -110,80 +83,33 @@ public class ChatClientWindow implements Serializable {
         frame.setVisible(true);
     }
 
-    private void sendMassage(String serviseString, String msg){
-        String shippedMsg = (msg.equals("")) ? taPrivate.getText() :  msg;
-        String shippedServiseStr = (serviseString.equals("")) ? "$$ServiceCode$$SimpleMassage" : serviseString;
+    private void sendMassage(ServiceCode serviseCode, String msg){
+        ServiceCode shippedServiseCode    = (serviseCode.equals("")) ? ServiceCode.SimpleMassage : serviseCode;
+        String shippedMsg           = (msg.equals(""))           ? taPrivate.getText()            :  msg;
 
-        if (!shippedMsg.equals("")){
-            ChatMassage massage = new ChatMassage(this, shippedServiseStr, shippedMsg, new ArrayList<ChatClientWindow>());
+        ChatUnits   unit    = new ChatUnits(client, client.getIdClient(), null, null, null );
+        ChatMassage massage = new ChatMassage(unit, shippedServiseCode, shippedMsg, listUnits);
 
-            try {
-                outObj.writeObject(massage);
-            }catch (IOException e) {
-                //e.printStackTrace();
-            }
+//        try {
+//            client.writeObject(massage);
+//        }catch (IOException e) {
+//            //e.printStackTrace();
+//        }
 
-            if (msg.equals(""))
-                taPrivate.setText("");
-        }
-    }
+        if (msg.equals(""))
+            taPrivate.setText("");
 
-    public String getName() {
-        return name;
-    }
-
-    private void refreshClientsList(ChatMassage massage){
-
-    }
-
-    @Override
-    public String toString() {
-        return getName();
-    }
-
-    class InputListener implements Runnable {
-        @Override
-        public void run() {
-            try {
-                while (isRunning) {
-                    if (!socket.isClosed()) {
-                        ChatMassage massage = (ChatMassage) inObj.readObject();
-
-                        if (massage.getServiseString().equals("$$ServiceCode$$SimpleMassage")) {
-                            taCommon.append("\n" + massage.getClient().getName() + ": " + massage.getString());
-                        }else if (massage.getServiseString().equals("$$ServiceCode$$ClientsList")){
-                            refreshClientsList(massage);
-                        }else if (massage.getServiseString().equals("$$ServiceCode$$CloseConnection")){
-                            isRunning = false;
-
-                            try {
-                                Thread.sleep(100);
-                                socket.close();
-                            }
-                            catch (IOException ioe) { ioe.printStackTrace(); }
-                            catch (InterruptedException ie) { ie.printStackTrace(); }
-                        }
-
-                        try {
-                            Thread.sleep(50);
-                        }catch (InterruptedException e) { e.printStackTrace(); }
-                    }
-
-                }
-            }
-            catch (IOException e) { e.printStackTrace(); }
-            catch (ClassNotFoundException e) { e.printStackTrace(); }
-        }
     }
 
     class WindowCloseListener implements WindowListener{
         @Override
         public void windowOpened(WindowEvent e) {
+
         }
 
         @Override
         public void windowClosing(WindowEvent e) {
-            sendMassage("$$ServiceCode$$CloseConnection", "Buy buy!");
+
         }
 
         @Override
@@ -193,18 +119,22 @@ public class ChatClientWindow implements Serializable {
 
         @Override
         public void windowIconified(WindowEvent e) {
+
         }
 
         @Override
         public void windowDeiconified(WindowEvent e) {
+
         }
 
         @Override
         public void windowActivated(WindowEvent e) {
+
         }
 
         @Override
         public void windowDeactivated(WindowEvent e) {
+
         }
     }
 }
