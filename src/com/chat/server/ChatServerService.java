@@ -53,7 +53,7 @@ public class ChatServerService {
     }
 
     private void setupGUI(){
-        JFrame frame        = new JFrame("Server for the chat app");
+        JFrame frame        = new JFrame("Server for the chat");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.addWindowListener(new WindowsCloseListener());
 
@@ -158,10 +158,19 @@ public class ChatServerService {
 
                     //to process an input massage
                     if (massageIn.getServiseCode() == ServiceCode.SimpleMassage) {
-                        ChatMassage massageOut = new ChatMassage(massageIn.getUnit(), ServiceCode.SimpleMassage, massageIn.getString(), null);
-                        outObj.writeObject(massageOut);
+                        ChatMassage massageOut = new ChatMassage(massageIn.getUnit(), ServiceCode.SimpleMassage, massageIn.getString(), massageIn.getListUnits());
+
+                        for (ChatUnits unitForMassage : massageIn.getListUnits()) {
+                            for (ChatUnits unitOfAll : arrUnits) {
+                                if ( (unitForMassage.getIDClient().equals(unitOfAll.getIDClient()) ) || (massageIn.getUnit().getIDClient().equals(unitOfAll.getIDClient()) ) ){
+                                    unitOfAll.getOutObj().writeObject(massageOut);
+                                }
+                            }
+                        }
+
                     } else {
                         applyServiceCode(massageIn);
+
                     }
                     try {
                         Thread.sleep(50);

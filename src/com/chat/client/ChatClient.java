@@ -14,6 +14,9 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class ChatClient implements Serializable {
@@ -60,7 +63,7 @@ public class ChatClient implements Serializable {
         frame                = new JFrame("Chat client " + name);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.addWindowListener(new WindowCloseListener());
-        frame.setSize(new Dimension(180, 500));
+        frame.setSize(new Dimension(350, 500));
 
         listModel                               = new DefaultListModel();
         list                                    = new JList(listModel);
@@ -86,7 +89,7 @@ public class ChatClient implements Serializable {
         }catch (IOException ioe) {ioe.printStackTrace();}
     }
 
-    private void sendMassage(ServiceCode serviceCode, String msg, CopyOnWriteArrayList<ChatUnits> units){
+    protected void sendMassage(ServiceCode serviceCode, String msg, CopyOnWriteArrayList<ChatUnits> units){
         if ((socket != null) && socket.isConnected()){
             ServiceCode shippedServiseStr = (serviceCode == null) ? ServiceCode.SimpleMassage : serviceCode;
 
@@ -96,6 +99,11 @@ public class ChatClient implements Serializable {
                 outObj.writeObject(massage);
             }catch (IOException e) { e.printStackTrace();}
         }
+    }
+
+
+    protected void removeDialogWindow(ChatClientWindow window){
+        listDialogWindows.remove(window);
     }
 
     private void refreshUnitList(){
@@ -122,14 +130,24 @@ public class ChatClient implements Serializable {
         CopyOnWriteArrayList<ChatUnits> arrUnits = new CopyOnWriteArrayList<>();
         arrUnits.add(choosenClient);
 
-        ChatClientWindow clientWindow = new ChatClientWindow(this, arrUnits);
-        listDialogWindows.add(clientWindow);
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                clientWindow.startCllient();
+        boolean windowAlreadyRunning = false;
+        for (ChatClientWindow window : listDialogWindows) {
+            if (arrUnits.equals(window.getListUnits())){
+                windowAlreadyRunning = true;
             }
-        });
+        }
+
+        if (!windowAlreadyRunning){
+            ChatClientWindow clientWindow = new ChatClientWindow(this, arrUnits);
+            clientWindow.setWindow(clientWindow);
+            listDialogWindows.add(clientWindow);
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    clientWindow.startCllient();
+                }
+            });
+        }
     }
 
     public String getIdClient() {
@@ -164,9 +182,21 @@ public class ChatClient implements Serializable {
 
         private void processMassage(ChatMassage massage){
             if (massage.getServiseCode() == ServiceCode.SimpleMassage){
+                for (ChatClientWindow window : listDialogWindows) {
+                    if (window.getListUnits().contains( massage.getUnit() )  ){
+                        window.recievMassage(massage);
+                    }
+
+                    if ( (massage.getUnit().getIDClient().equals(getIdClient())) & (equalListUnits(window.getListUnits(), massage.getListUnits())) ){
+                        window.recievMassage(massage);
+                    }
+                }
+
+
             }else if (massage.getServiseCode() == ServiceCode.ClientsList){
                 listUnits = massage.getListUnits();
                 refreshUnitList();
+
             }else if (massage.getServiseCode() == ServiceCode.CloseConnection){
                 isRunning = false;
                 try {
@@ -174,11 +204,48 @@ public class ChatClient implements Serializable {
                     socket.close();
                 }
                 catch (IOException | InterruptedException e) { e.printStackTrace(); }
+
             }else if (massage.getServiseCode() == ServiceCode.NameOfClient){
                 setIdClient(massage.getString());
                 frame.setTitle("Chat client " + name +  " [" + idClient + "]");
             }
         }
+    }
+
+    private boolean equalListUnits(CopyOnWriteArrayList<ChatUnits> list1, CopyOnWriteArrayList<ChatUnits> list2){
+        boolean res = true;
+
+        if ( (list1 != null) & (list2 != null) ) {
+            ArrayList<String> l1 = new ArrayList<>();
+            for (ChatUnits unit : list1) {
+                l1.add(unit.getIDClient());
+            }
+
+            ArrayList<String> l2 = new ArrayList<>();
+            for (ChatUnits unit : list2) {
+                l2.add(unit.getIDClient());
+            }
+
+            Collections.sort(l1);
+            Collections.sort(l2);
+
+            if (l1.size() != l2.size()) {
+                res = false;
+            } else {
+                for (int i = 0; i < l1.size(); i++) {
+                    if (!l1.get(i). equals(l2.get(i))) {
+                        res = false;
+                    }
+                }
+            }
+
+//        }else if ( (list1 == null) & (list2 == null) )
+//            res = true;
+        }else
+            res = false;
+
+
+        return res;
     }
 
     class WindowCloseListener implements WindowListener {

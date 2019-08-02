@@ -63,6 +63,16 @@ public class ChatUnits implements Serializable {
     }
 
     @Override
+    public boolean equals(Object obj) {
+        boolean res = false;
+        ChatUnits another =  (ChatUnits)obj;
+        if ( getIDClient().equals(another.getIDClient()) )
+            res = true;
+
+        return res;
+    }
+
+    @Override
     public String toString() {
         return getClient().getName() + " [" + getIDClient() + "]";
     }

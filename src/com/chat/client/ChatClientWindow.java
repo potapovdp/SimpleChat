@@ -1,5 +1,6 @@
 package com.chat.client;
 
+import com.chat.server.ChatServerService;
 import com.chat.server.ChatUnits;
 import com.chat.server.ServiceCode;
 
@@ -10,6 +11,10 @@ import java.awt.event.ActionListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.Socket;
+import java.util.Calendar;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class ChatClientWindow {
@@ -19,13 +24,13 @@ public class ChatClientWindow {
     private transient JTextArea                         taPrivate;
     private transient JButton                           bSend;
 
-    private boolean                                     isRunning;
-    private ChatClient                                  client;
-    private CopyOnWriteArrayList<ChatUnits>             listUnits;
+    private ChatClient                                  client;     //host of this dialog window
+    private CopyOnWriteArrayList<ChatUnits>             listUnits;  //list of units for a conversation
+    private ChatClientWindow                            window;     //tis object for identify it in host
 
     public ChatClientWindow(ChatClient client, CopyOnWriteArrayList<ChatUnits> listUnits) {
-        this.client = client;
-        this.listUnits = listUnits;
+        this.client     = client;
+        this.listUnits  = listUnits;
     }
 
     public void startCllient() {
@@ -34,7 +39,8 @@ public class ChatClientWindow {
 
     private void setupGUI() {
 
-        String strUnits = "Simple chat with ";
+        String strUnits = "("+client.getName() + " [" + client.getIdClient() + "]) ";
+        strUnits += "Simple chat with: ";
         for (int i = 0; i < listUnits.size(); i++) {
             if (i > 0)
                 strUnits += ", ";
@@ -78,63 +84,74 @@ public class ChatClientWindow {
         });
 
         frame.add(bSend, BorderLayout.SOUTH);
-        frame.setSize(new Dimension(450, 550));
-        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        frame.setSize(new Dimension(500, 550));
+        frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         frame.setVisible(true);
     }
 
     private void sendMassage(ServiceCode serviseCode, String msg){
-        ServiceCode shippedServiseCode    = (serviseCode.equals("")) ? ServiceCode.SimpleMassage : serviseCode;
-        String shippedMsg           = (msg.equals(""))           ? taPrivate.getText()            :  msg;
+        ServiceCode shippedServiseCode    = (serviseCode == null)    ? ServiceCode.SimpleMassage : serviseCode;
+        String shippedMsg                 = (msg.equals(""))         ? taPrivate.getText()       :  msg;
 
-        ChatUnits   unit    = new ChatUnits(client, client.getIdClient(), null, null, null );
-        ChatMassage massage = new ChatMassage(unit, shippedServiseCode, shippedMsg, listUnits);
-
-//        try {
-//            client.writeObject(massage);
-//        }catch (IOException e) {
-//            //e.printStackTrace();
-//        }
+        client.sendMassage(shippedServiseCode, shippedMsg, listUnits);
 
         if (msg.equals(""))
             taPrivate.setText("");
 
     }
 
+    protected void recievMassage(ChatMassage massage){
+        Calendar calendar = Calendar.getInstance();
+        ServiceCode sc = massage.getServiseCode();
+        if (sc == ServiceCode.SimpleMassage){
+            taCommon.append("" + massage.getUnit() + " (" + calendar.getTime() + "): \n");
+            taCommon.append(massage.getString() + "\n");
+        }
+    }
+
+    protected void setWindow(ChatClientWindow window) {
+        this.window = window;
+    }
+
+    public ChatClient getClient() {
+        return client;
+    }
+
+    public ChatClientWindow getWindow() {
+        return window;
+    }
+
+    public CopyOnWriteArrayList<ChatUnits> getListUnits() {
+        return listUnits;
+    }
+
     class WindowCloseListener implements WindowListener{
         @Override
-        public void windowOpened(WindowEvent e) {
-
-        }
+        public void windowOpened(WindowEvent e) {}
 
         @Override
         public void windowClosing(WindowEvent e) {
-
+            //System.out.println("windowClosing");
         }
 
         @Override
         public void windowClosed(WindowEvent e) {
-
+            getClient().removeDialogWindow(window);
         }
 
         @Override
-        public void windowIconified(WindowEvent e) {
-
-        }
+        public void windowIconified(WindowEvent e) {}
 
         @Override
-        public void windowDeiconified(WindowEvent e) {
-
-        }
+        public void windowDeiconified(WindowEvent e) {}
 
         @Override
-        public void windowActivated(WindowEvent e) {
-
-        }
+        public void windowActivated(WindowEvent e) {}
 
         @Override
         public void windowDeactivated(WindowEvent e) {
-
+            //System.out.println("windowDeactivated");
         }
     }
+
 }
