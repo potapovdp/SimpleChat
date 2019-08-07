@@ -126,7 +126,8 @@ public class ChatClient implements Serializable {
         }
     }
 
-    private void getChoosenConnection(ChatUnits choosenClient){
+    private ChatClientWindow getChoosenConnection(ChatUnits choosenClient){
+        ChatClientWindow res = null;
         CopyOnWriteArrayList<ChatUnits> arrUnits = new CopyOnWriteArrayList<>();
         arrUnits.add(choosenClient);
 
@@ -134,6 +135,9 @@ public class ChatClient implements Serializable {
         for (ChatClientWindow window : listDialogWindows) {
             if (arrUnits.equals(window.getListUnits())){
                 windowAlreadyRunning = true;
+                res = window;
+                if (!window.getFrame().isVisible())
+                    window.getFrame().setVisible(true);
             }
         }
 
@@ -141,6 +145,7 @@ public class ChatClient implements Serializable {
             ChatClientWindow clientWindow = new ChatClientWindow(this, arrUnits);
             clientWindow.setWindow(clientWindow);
             listDialogWindows.add(clientWindow);
+            res = clientWindow;
             SwingUtilities.invokeLater(new Runnable() {
                 @Override
                 public void run() {
@@ -148,6 +153,8 @@ public class ChatClient implements Serializable {
                 }
             });
         }
+
+        return res;
     }
 
     public String getIdClient() {
@@ -182,16 +189,28 @@ public class ChatClient implements Serializable {
 
         private void processMassage(ChatMassage massage){
             if (massage.getServiseCode() == ServiceCode.SimpleMassage){
+                boolean windowIsFound = false;
                 for (ChatClientWindow window : listDialogWindows) {
                     if (window.getListUnits().contains( massage.getUnit() )  ){
                         window.recievMassage(massage);
+                        windowIsFound = true;
+                        if (!window.getFrame().isVisible())
+                            window.getFrame().setVisible(true);
                     }
 
                     if ( (massage.getUnit().getIDClient().equals(getIdClient())) & (equalListUnits(window.getListUnits(), massage.getListUnits())) ){
                         window.recievMassage(massage);
+                        windowIsFound = true;
                     }
-                }
 
+                }
+                if (!windowIsFound){
+                    ChatClientWindow window = getChoosenConnection(massage.getUnit());
+                    try {
+                        Thread.sleep(1500);
+                    }catch (InterruptedException e){ e.printStackTrace(); }
+                    window.recievMassage(massage);
+                }
 
             }else if (massage.getServiseCode() == ServiceCode.ClientsList){
                 listUnits = massage.getListUnits();

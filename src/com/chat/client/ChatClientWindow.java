@@ -6,10 +6,7 @@ import com.chat.server.ServiceCode;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
+import java.awt.event.*;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -67,6 +64,25 @@ public class ChatClientWindow {
         JScrollPane spPrivate = new JScrollPane(taPrivate);
         spPrivate.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
         spPrivate.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        taPrivate.addKeyListener(new KeyListener() {
+            @Override
+            public void keyTyped(KeyEvent e) {
+                //System.out.println(e.getKeyCode());
+            }
+
+            @Override
+            public void keyPressed(KeyEvent e) {
+                System.out.println(e.getKeyCode());
+                if ( (e.isAltDown()) & (e.getKeyCode() == KeyEvent.VK_ENTER) ){
+                    sendMassage(null,"");
+                }
+            }
+
+            @Override
+            public void keyReleased(KeyEvent e) {
+                System.out.println(e.getKeyCode());
+            }
+        });
 
         panel = new JPanel();
         BoxLayout boxLayout = new BoxLayout(panel, BoxLayout.Y_AXIS);
@@ -86,6 +102,7 @@ public class ChatClientWindow {
         frame.add(bSend, BorderLayout.SOUTH);
         frame.setSize(new Dimension(500, 550));
         frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+        //frame.setDefaultCloseOperation(WindowConstants.HIDE_ON_CLOSE);
         frame.setVisible(true);
     }
 
@@ -119,6 +136,10 @@ public class ChatClientWindow {
 
     public ChatClientWindow getWindow() {
         return window;
+    }
+
+    public JFrame getFrame() {
+        return frame;
     }
 
     public CopyOnWriteArrayList<ChatUnits> getListUnits() {
