@@ -1,5 +1,5 @@
 package com.chat.server;
 
-public enum ServiceCode {
+public enum ChatServiceCode {
     SimpleMassage, GetPrivateConnection, ClientsList, CloseConnection, NameOfClient
 }

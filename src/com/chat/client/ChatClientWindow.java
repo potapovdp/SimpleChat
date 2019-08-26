@@ -1,42 +1,47 @@
 package com.chat.client;
 
-import com.chat.server.ChatServerService;
 import com.chat.server.ChatUnits;
-import com.chat.server.ServiceCode;
+import com.chat.server.ChatServiceCode;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.net.Socket;
 import java.util.Calendar;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class ChatClientWindow {
     private transient JFrame                            frame;
-    private transient JPanel                            panel;
     private transient JTextArea                         taCommon;
     private transient JTextArea                         taPrivate;
-    private transient JButton                           bSend;
 
     private ChatClient                                  client;     //host of this dialog window
     private CopyOnWriteArrayList<ChatUnits>             listUnits;  //list of units for a conversation
     private ChatClientWindow                            window;     //tis object for identify it in host
+    private ChatClientSettings                          settingsGeneral;
 
-    public ChatClientWindow(ChatClient client, CopyOnWriteArrayList<ChatUnits> listUnits) {
-        this.client     = client;
-        this.listUnits  = listUnits;
+    ChatClientWindow(ChatClient client, CopyOnWriteArrayList<ChatUnits> listUnits, ChatClientSettings settings) {
+        this.client             = client;
+        this.listUnits          = listUnits;
+        this.settingsGeneral    = settings;
     }
 
-    public void startCllient() {
+    void startCllient() {
         setupGUI();
+        setWindowActive();
+    }
+
+    private void setWindowActive(){
+        frame.setExtendedState(JFrame.ICONIFIED);
+        frame.setExtendedState(JFrame.NORMAL);
+        frame.toFront();
+        frame.requestFocus();
+        taPrivate.requestFocus();
     }
 
     private void setupGUI() {
 
-        String strUnits = "("+client.getName() + " [" + client.getIdClient() + "]) ";
+        String strUnits = "("+client.getNameClient() + " [" + client.getIdClient() + "]) ";
         strUnits += "Simple chat with: ";
         for (int i = 0; i < listUnits.size(); i++) {
             if (i > 0)
@@ -66,49 +71,44 @@ public class ChatClientWindow {
         spPrivate.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         taPrivate.addKeyListener(new KeyListener() {
             @Override
-            public void keyTyped(KeyEvent e) {
-                //System.out.println(e.getKeyCode());
-            }
+            public void keyTyped(KeyEvent e) {}
 
             @Override
             public void keyPressed(KeyEvent e) {
-                System.out.println(e.getKeyCode());
-                if ( (e.isAltDown()) & (e.getKeyCode() == KeyEvent.VK_ENTER) ){
+                 if ( (e.isAltDown()) & (Objects.equals(e.getKeyCode(), KeyEvent.VK_ENTER)) & settingsGeneral.isSendMassageAltEnter() ){
+                    sendMassage(null,"");
+                }else if ( (e.isControlDown()) & (Objects.equals(e.getKeyCode(), KeyEvent.VK_ENTER)) & settingsGeneral.isSendMassageCtrlEnter() ){
+                    sendMassage(null,"");
+                }else if ( Objects.equals(e.getKeyCode(), KeyEvent.VK_ENTER) & !e.isControlDown() & !e.isAltDown() & settingsGeneral.isSendMassageEnter() ){
                     sendMassage(null,"");
                 }
             }
 
             @Override
-            public void keyReleased(KeyEvent e) {
-                System.out.println(e.getKeyCode());
-            }
+            public void keyReleased(KeyEvent e) {}
         });
 
-        panel = new JPanel();
+        JPanel panel = new JPanel();
         BoxLayout boxLayout = new BoxLayout(panel, BoxLayout.Y_AXIS);
         panel.setLayout(boxLayout);
         panel.add(spCommon);
         panel.add(spPrivate);
         frame.getContentPane().add(panel, BorderLayout.CENTER);
 
-        bSend = new JButton("Send massage");
-        bSend.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                sendMassage(null,"");
-            }
-        });
+        JButton bSend = new JButton("Send massage");
+        bSend.addActionListener((e)  ->  sendMassage(null,"") );
 
         frame.add(bSend, BorderLayout.SOUTH);
         frame.setSize(new Dimension(500, 550));
         frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-        //frame.setDefaultCloseOperation(WindowConstants.HIDE_ON_CLOSE);
+
+        //frame.pack();
         frame.setVisible(true);
     }
 
-    private void sendMassage(ServiceCode serviseCode, String msg){
-        ServiceCode shippedServiseCode    = (serviseCode == null)    ? ServiceCode.SimpleMassage : serviseCode;
-        String shippedMsg                 = (msg.equals(""))         ? taPrivate.getText()       :  msg;
+    private void sendMassage(ChatServiceCode serviseCode, String msg){
+        ChatServiceCode shippedServiseCode    = Objects.isNull(serviseCode)     ? ChatServiceCode.SimpleMassage : serviseCode;
+        String shippedMsg                 = (msg.equals(""))                ? taPrivate.getText()       :  msg;
 
         client.sendMassage(shippedServiseCode, shippedMsg, listUnits);
 
@@ -119,11 +119,12 @@ public class ChatClientWindow {
 
     protected void recievMassage(ChatMassage massage){
         Calendar calendar = Calendar.getInstance();
-        ServiceCode sc = massage.getServiseCode();
-        if (sc == ServiceCode.SimpleMassage){
+        ChatServiceCode sc = massage.getServiseCode();
+        if (sc == ChatServiceCode.SimpleMassage){
             taCommon.append("" + massage.getUnit() + " (" + calendar.getTime() + "): \n");
             taCommon.append(massage.getString() + "\n");
         }
+        setWindowActive();
     }
 
     protected void setWindow(ChatClientWindow window) {
@@ -145,6 +146,7 @@ public class ChatClientWindow {
     public CopyOnWriteArrayList<ChatUnits> getListUnits() {
         return listUnits;
     }
+
 
     class WindowCloseListener implements WindowListener{
         @Override

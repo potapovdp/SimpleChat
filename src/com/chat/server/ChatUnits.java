@@ -74,6 +74,6 @@ public class ChatUnits implements Serializable {
 
     @Override
     public String toString() {
-        return getClient().getName() + " [" + getIDClient() + "]";
+        return getClient().getNameClient() + " [" + getIDClient() + "]";
     }
 }

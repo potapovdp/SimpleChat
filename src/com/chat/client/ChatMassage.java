@@ -1,7 +1,7 @@
 package com.chat.client;
 
 import com.chat.server.ChatUnits;
-import com.chat.server.ServiceCode;
+import com.chat.server.ChatServiceCode;
 
 import java.io.Serializable;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -9,17 +9,17 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class ChatMassage implements Serializable {
     private String                              string;
     private ChatUnits                           unit;
-    private ServiceCode serviseCode;
+    private ChatServiceCode serviseCode;
     private CopyOnWriteArrayList<ChatUnits>     listUnits;
 
-    public ChatMassage(ChatUnits unit, ServiceCode serviseCode, String string, CopyOnWriteArrayList<ChatUnits> listUnits) {
+    public ChatMassage(ChatUnits unit, ChatServiceCode serviseCode, String string, CopyOnWriteArrayList<ChatUnits> listUnits) {
         this.unit           = unit;
         this.string         = string;
         this.serviseCode    = serviseCode;
         this.listUnits      = listUnits;
     }
 
-    public void setServiseCode(ServiceCode serviseCode) {
+    public void setServiseCode(ChatServiceCode serviseCode) {
         this.serviseCode = serviseCode;
     }
 
@@ -35,7 +35,7 @@ public class ChatMassage implements Serializable {
         this.listUnits = listUnits;
     }
 
-    public ServiceCode getServiseCode() {
+    public ChatServiceCode getServiseCode() {
         return serviseCode;
     }
 

@@ -151,14 +151,14 @@ public class ChatServerService {
                 while (socket.isConnected() && isRunning) {
                     ChatMassage massageIn = (ChatMassage) inObj.readObject();
 
-                    String newMassage = massageIn.getUnit().getClient().getName() + ": " + massageIn.getString();
+                    String newMassage = massageIn.getUnit().getClient().getNameClient() + ": " + massageIn.getString();
 
                     //to write to the common window
                     taCommon.append("\n" + newMassage);
 
                     //to process an input massage
-                    if (massageIn.getServiseCode() == ServiceCode.SimpleMassage) {
-                        ChatMassage massageOut = new ChatMassage(massageIn.getUnit(), ServiceCode.SimpleMassage, massageIn.getString(), massageIn.getListUnits());
+                    if (massageIn.getServiseCode() == ChatServiceCode.SimpleMassage) {
+                        ChatMassage massageOut = new ChatMassage(massageIn.getUnit(), ChatServiceCode.SimpleMassage, massageIn.getString(), massageIn.getListUnits());
 
                         for (ChatUnits unitForMassage : massageIn.getListUnits()) {
                             for (ChatUnits unitOfAll : arrUnits) {
@@ -187,24 +187,24 @@ public class ChatServerService {
 
         //Apply service codes for clients
         private void applyServiceCode(ChatMassage massage){
-            ServiceCode scLine   = massage.getServiseCode();
+            ChatServiceCode scLine   = massage.getServiseCode();
 
-            if (scLine == ServiceCode.NameOfClient){
+            if (scLine == ChatServiceCode.NameOfClient){
                 unit = new ChatUnits(massage.getUnit().getClient(), ""+massage.getUnit().getClient().hashCode(), outObj, inObj,socket);
                 arrUnits.add(unit);
 
                 //send back to unit its id
-                ChatMassage massageID = new ChatMassage(null, ServiceCode.NameOfClient, ""+massage.getUnit().getClient().hashCode(),null);
+                ChatMassage massageID = new ChatMassage(null, ChatServiceCode.NameOfClient, ""+massage.getUnit().getClient().hashCode(),null);
                 try {
                     outObj.writeObject(massageID);
                 }catch (IOException e){ e.printStackTrace(); }
 
-            }else if (scLine == ServiceCode.CloseConnection){
+            }else if (scLine == ChatServiceCode.CloseConnection){
                 isRunning = false;
                 for (ChatUnits chatUnits : arrUnits) {
                     if (chatUnits == unit){
                         try {
-                            ChatMassage massageBuy = new ChatMassage(null, ServiceCode.CloseConnection, "Buy buy!", null);
+                            ChatMassage massageBuy = new ChatMassage(null, ChatServiceCode.CloseConnection, "Buy buy!", null);
                             outObj.writeObject(massageBuy);
                         }catch (IOException ioe) {ioe.printStackTrace();
                         }finally { arrUnits.remove(chatUnits); }
@@ -253,7 +253,7 @@ public class ChatServerService {
                 //send the list of clients to each clent
                 for (ChatUnits unit : arrUnits) {
                     try {
-                        unit.getOutObj().writeObject(new ChatMassage(null, ServiceCode.ClientsList,"", getCllientsArray(unit)));
+                        unit.getOutObj().writeObject(new ChatMassage(null, ChatServiceCode.ClientsList,"", getCllientsArray(unit)));
                     }catch (IOException e) { e.printStackTrace(); }
                 }
 
