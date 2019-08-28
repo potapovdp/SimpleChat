@@ -9,12 +9,13 @@ import java.awt.event.*;
 import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class ChatClient extends ChatClientSettings implements Serializable {
+public class ChatClient implements Serializable {
     private transient Socket                                socket;
     private transient ObjectInputStream                     inObj;
     private transient ObjectOutputStream                    outObj;
@@ -27,6 +28,7 @@ public class ChatClient extends ChatClientSettings implements Serializable {
     private transient CopyOnWriteArrayList<ChatUnits>       listUnits;
     private transient JList<ChatUnits>                      list;
     private transient JFrame                                frame;
+    private transient InputListener                         threadListener;
 
     private Boolean                                         isRunning;
     private String                                          idClient;
@@ -38,15 +40,10 @@ public class ChatClient extends ChatClientSettings implements Serializable {
         isRunning   = true;
         version     = "b 0.0.3";
 
-        try {
-            setNameClient(InetAddress.getLocalHost().getHostName());
-        }catch (UnknownHostException e) { e.printStackTrace(); }
-
         listDialogWindows   = new CopyOnWriteArrayList<>();
 
         //Settings
         settingsGeneral     = new ChatClientSettings();
-        settingsGeneral.setNameClient(getNameClient());
     }
 
     public static void main(String[] args) {
@@ -60,12 +57,12 @@ public class ChatClient extends ChatClientSettings implements Serializable {
 
     private void go(){
         setupGUI();
-        setupNet();
         setupSettings();
+        setupNet();
     }
 
     private void setupGUI(){
-        frame                = new JFrame("Chat client " + getNameClient());
+        frame                = new JFrame("Chat client " + settingsGeneral.getNameClient());
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.addWindowListener(new WindowCloseListener());
         frame.setSize(new Dimension(350, 500));
@@ -103,6 +100,9 @@ public class ChatClient extends ChatClientSettings implements Serializable {
         menuBar.add(menuSettings);
         menuBar.add(menuHelp);
 
+        //An Indicator for recieving client-list
+
+
         frame.setJMenuBar(menuBar);
 
         frame.add(BorderLayout.CENTER, list);
@@ -113,31 +113,34 @@ public class ChatClient extends ChatClientSettings implements Serializable {
 
     private void setupNet(){
         try {
-            socket  = new Socket("192.168.1.110", 7171);
-            //socket  = new Socket("192.168.1.63", 7171);
+            String  serverIp    = settingsGeneral.getServerIp();
+            int     serverSocet = settingsGeneral.getServerSocket();
+
+            socket  = new Socket(serverIp, serverSocet);
+
             inObj   = new ObjectInputStream(socket.getInputStream());
             outObj  = new ObjectOutputStream(socket.getOutputStream());
 
-            sendMassage(ChatServiceCode.NameOfClient, getNameClient(), null);
+            sendMassage(ChatServiceCode.NameOfClient, settingsGeneral.getNameClient(), null);
 
-            Thread threadListener = new Thread(new InputListener());
+            threadListener = new InputListener();
             threadListener.start();
 
-        }catch (IOException ioe) {ioe.printStackTrace();}
+        }catch (IOException ioe) {
+            ioe.printStackTrace();
+        }
     }
 
     private void setupSettings(){
 
-        Path pathFileSettings = Path.of(System.getProperty("user.home") + "\\settings");
+        settingsGeneral.fillByDefault();
         try {
-            //pathFileSettings.toFile().is
-            inObjSettings                       = new ObjectInputStream(new FileInputStream(pathFileSettings.toFile()));
+            inObjSettings = new ObjectInputStream(new FileInputStream(settingsGeneral.getPathFileSettings().toFile()));
 
             //reading setting object
             Object o = inObjSettings.readObject();
             if (o instanceof ChatClientSettings){
                 settingsGeneral = (ChatClientSettings) o;
-                applySettings();
             }
         }
         catch (FileNotFoundException e) {
@@ -148,27 +151,22 @@ public class ChatClient extends ChatClientSettings implements Serializable {
         }
         catch (IOException e) {e.printStackTrace();}
         finally {
-            settingsGeneral.setPathFileSettings(pathFileSettings);
-            setSendMethod();
+            applySettings();
         }
     }
 
-    private void setSendMethod(){
-        if (!isSendMassageAltEnter() & !isSendMassageCtrlEnter() & !isSendMassageEnter()){
-            setSendMassageAltEnter(true);
-        }
-        applySettings();
-    }
 
     void sendMassage(ChatServiceCode serviceCode, String msg, CopyOnWriteArrayList<ChatUnits> units){
-        if ( !Objects.isNull(socket)  &&  socket.isConnected()){
+        if ( !Objects.isNull(socket)  &&  socket.isConnected() && !socket.isClosed()){
             ChatServiceCode shippedServiseStr = ( Objects.isNull(serviceCode) ) ? ChatServiceCode.SimpleMassage : serviceCode;
 
             ChatUnits unit = new ChatUnits(this, getIdClient(), null, null, null );
             ChatMassage massage = new ChatMassage(unit,serviceCode, msg, units);
             try {
                 outObj.writeObject(massage);
-            }catch (IOException e) { e.printStackTrace();}
+            }catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -234,17 +232,15 @@ public class ChatClient extends ChatClientSettings implements Serializable {
         this.idClient = idClient;
     }
 
-    @Override
-    public void setNameClient(String name) {
-        super.setNameClient(name);
+    private void setNameClient(String name) {
         if (!Objects.isNull(frame)){
-            frame.setTitle("Chat client " + getNameClient());
+            frame.setTitle("Chat client " + name);
         }
     }
 
     @Override
     public String toString() {
-        return getNameClient();
+        return settingsGeneral.getNameClient();
     }
 
     private boolean equalListUnits(CopyOnWriteArrayList<ChatUnits> list1, CopyOnWriteArrayList<ChatUnits> list2){
@@ -288,37 +284,79 @@ public class ChatClient extends ChatClientSettings implements Serializable {
         if ( !Objects.isNull(settingsGeneral) ){
 
             String tmpFieldName = settingsGeneral.getNameClient();
-            if ( !Objects.equals(tmpFieldName, getNameClient()) ){
+            if ( !Objects.equals(tmpFieldName, settingsGeneral.getNameClient()) ){
                 setNameClient(tmpFieldName);
-            }
-
-            boolean tmpFieldBoolean = settingsGeneral.isSendMassageEnter();
-            if ( !Objects.equals(tmpFieldBoolean, isSendMassageEnter()) ){
-                setSendMassageEnter(tmpFieldBoolean);
-            }
-
-            tmpFieldBoolean         = settingsGeneral.isSendMassageAltEnter();
-            if ( !Objects.equals(tmpFieldBoolean, isSendMassageAltEnter()) ){
-                setSendMassageAltEnter(tmpFieldBoolean);
-            }
-
-            tmpFieldBoolean         = settingsGeneral.isSendMassageCtrlEnter();
-            if ( !Objects.equals(tmpFieldBoolean, isSendMassageCtrlEnter()) ){
-                setSendMassageCtrlEnter(tmpFieldBoolean);
             }
         }
     }
 
-    class InputListener implements Runnable{
+    void cancelNetConnrction(){
+        beforeClose();
+
+        try {
+            inObj.close();
+            outObj.close();
+            socket.close();
+            isRunning = false;
+
+            //Stop previous thread listener
+            try {
+                Thread.sleep(60);
+            }catch (InterruptedException e) {e.printStackTrace();}
+
+            if ( threadListener.isAlive() ){
+                threadListener.interrupt();
+            }
+        }catch (IOException e) {e.printStackTrace();}
+    }
+
+    public String getNameClient(){
+        return settingsGeneral.getNameClient();
+    }
+
+    ChatClientSettings getSettingsGeneral() {
+        return settingsGeneral;
+    }
+
+    void setSettingsGeneral(ChatClientSettings sg) {
+        ChatClientSettings oldSettings  = this.settingsGeneral;
+        this.settingsGeneral            = sg;
+
+        if ( !Objects.equals(oldSettings.getServerIp(), settingsGeneral.getServerIp())
+                || !Objects.equals(oldSettings.getServerSocket(), settingsGeneral.getServerSocket()) ){
+            cancelNetConnrction();
+            setupNet();
+        }
+    }
+
+    void showMassage(String s){
+        SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(null, s));
+    }
+
+    class InputListener extends Thread {
+        private int         counter = 0;
+        private Thread      currenrThred;
+
+        public InputListener() {
+            super();
+            isRunning = true;
+            currenrThred = Thread.currentThread();
+        }
+
         @Override
         public void run() {
+
+
             while (socket.isConnected() && isRunning){
 
                 try {
                     ChatMassage massage = (ChatMassage) inObj.readObject();
                     processMassage(massage);
                 }
-                catch (ClassNotFoundException | IOException e) { e.printStackTrace(); }
+                catch (SocketException e){}
+                catch (ClassNotFoundException | IOException e) {
+                    e.printStackTrace();
+                }
             }
         }
 
@@ -362,7 +400,7 @@ public class ChatClient extends ChatClientSettings implements Serializable {
 
             }else if (massage.getServiseCode() == ChatServiceCode.NameOfClient){
                 setIdClient(massage.getString());
-                frame.setTitle("Chat client " + getNameClient() +  " [" + idClient + "]");
+                frame.setTitle("Chat client " + settingsGeneral.getNameClient() +  " [" + idClient + "]");
             }
         }
     }
@@ -431,7 +469,7 @@ public class ChatClient extends ChatClientSettings implements Serializable {
                                 break;
 
                             case "SettingsSet":
-                                new ChatClientSettingsWindow(settingsGeneral);
+                                 new ChatClientSettingsWindow(ChatClient.this);
                                 break;
                         }
                 });

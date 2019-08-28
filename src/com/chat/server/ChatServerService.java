@@ -11,7 +11,9 @@ import java.awt.event.WindowListener;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class ChatServerService {
@@ -43,7 +45,7 @@ public class ChatServerService {
             while (true){
                 Socket socket           = serverSocket.accept();
 
-                Thread inputListener    = new Thread(new InputListener(socket));
+                Thread inputListener    = new Thread(new ClientThread(socket));
                 inputListener.start();
             }
 
@@ -82,11 +84,7 @@ public class ChatServerService {
         bRefreshClients.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                for (ChatUnits client : arrUnits) {
-//                    try {
-//                        client.getOutObj().writeObject(new ChatMassage(null,"$$ServiceCode$$ClientsList", "", getCllientsArray()));
-//                    }catch (IOException ioe) { ioe.printStackTrace(); }
-                }
+                for (ChatUnits client : arrUnits) {}
             }
         });
         frame.add(BorderLayout.SOUTH, bRefreshClients);
@@ -127,17 +125,19 @@ public class ChatServerService {
         return units;
     }
 
-    class InputListener implements Runnable{
-        ObjectInputStream   inObj;
-        ObjectOutputStream  outObj;
+    class ClientThread implements Runnable{
+        private ObjectInputStream   inObj;
+        private ObjectOutputStream  outObj;
 
-        Socket              socket;
-        ChatUnits           unit;
-        boolean             isRunning;
+        private Socket              socket;
+        private ChatUnits           unit;
+        private boolean             isRunning;
+        private Thread              currentThread;
 
-        InputListener(Socket s){
+        ClientThread(Socket s){
             socket      = s;
             isRunning   = true;
+            currentThread = Thread.currentThread();
             try {
                 outObj      = new ObjectOutputStream(socket.getOutputStream());
                 inObj       = new ObjectInputStream(socket.getInputStream());
@@ -148,7 +148,7 @@ public class ChatServerService {
         @Override
         public void run() {
             try {
-                while (socket.isConnected() && isRunning) {
+                while (socket.isConnected() && isRunning && !Objects.isNull(inObj)) {
                     ChatMassage massageIn = (ChatMassage) inObj.readObject();
 
                     String newMassage = massageIn.getUnit().getClient().getNameClient() + ": " + massageIn.getString();
@@ -178,9 +178,7 @@ public class ChatServerService {
                         e.printStackTrace();
                     }
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (ClassNotFoundException e) {
+            } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
             }
         }
@@ -254,7 +252,11 @@ public class ChatServerService {
                 for (ChatUnits unit : arrUnits) {
                     try {
                         unit.getOutObj().writeObject(new ChatMassage(null, ChatServiceCode.ClientsList,"", getCllientsArray(unit)));
-                    }catch (IOException e) { e.printStackTrace(); }
+                    }catch (SocketException e){
+                        arrUnits.remove(unit);
+                    }catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
 
                 try {
