@@ -6,11 +6,12 @@ import com.chat.server.ChatServiceCode;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.io.Serializable;
 import java.util.Calendar;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class ChatClientWindow {
+public class ChatClientWindow implements Serializable {
     private transient JFrame                            frame;
     private transient JTextArea                         taCommon;
     private transient JTextArea                         taPrivate;

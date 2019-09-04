@@ -96,24 +96,33 @@ public class ChatClientSettings implements Serializable {
         //Set Net and General settings
         InetAddress inetAddress = null;
         String      strIp       = "192.168.1.110";
+        int         intSocket   = 7171;
         try {
             inetAddress = InetAddress.getLocalHost();
         }catch (UnknownHostException e) {e.printStackTrace();}
         if ( !Objects.isNull(inetAddress) ){
-            strIp = getFullIp(inetAddress.getHostAddress().split("\\."));
+            strIp       = getFullIp(inetAddress.getHostAddress().split("\\."));
+            intSocket   = intSocket;
             setNameClient(inetAddress.getHostName());
         }
 
         setServerIp(strIp);
-        setServerSocket(7171);
+        setServerSocket(intSocket);
 
     }
 
-    String getFullIp(String[] sip){
+    public String getFullIp(String[] sip){
         String res = "";
         for (String s : sip) {
             res += ("000" + s).substring(s.length());
         }
+        return res;
+    }
+
+    public String getFullSocket(String socket){
+        String res = "";
+        res += ("00000" + socket).substring(socket.length());
+
         return res;
     }
 }

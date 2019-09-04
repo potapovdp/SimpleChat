@@ -7,12 +7,12 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
-import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
+import java.util.Timer;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class ChatClient implements Serializable {
@@ -28,17 +28,19 @@ public class ChatClient implements Serializable {
     private transient CopyOnWriteArrayList<ChatUnits>       listUnits;
     private transient JList<ChatUnits>                      list;
     private transient JFrame                                frame;
+    private transient ChatClientPannellOnline               panelInf;
     private transient InputListener                         threadListener;
 
-    private Boolean                                         isRunning;
     private String                                          idClient;
     private String                                          version;
+    private Boolean                                         isRunning;
+    private LocalDateTime                                   timeOfLastServerMassage;
 
     private CopyOnWriteArrayList<ChatClientWindow>          listDialogWindows;
 
     public ChatClient() {
         isRunning   = true;
-        version     = "b 0.0.3";
+        version     = "b 0.0.4";
 
         listDialogWindows   = new CopyOnWriteArrayList<>();
 
@@ -47,18 +49,34 @@ public class ChatClient implements Serializable {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                new ChatClient().go();
-            }
-        });
+        SwingUtilities.invokeLater(() -> new ChatClient().go());
     }
 
     private void go(){
         setupGUI();
         setupSettings();
         setupNet();
+
+        //Timer and Shedulers
+        Timer timer         = new Timer("Update net-status");
+        TimerTask timerTaskUpdateNetStatus = new TimerTask() {
+            @Override
+            public void run() {
+                updateNetStatus(false);
+            }
+        };
+
+        TimerTask timerTaskReconnectToServer = new TimerTask() {
+            @Override
+            public void run() {
+                if ( Objects.nonNull(socket) && (socket.isClosed()) ){
+                    reconnect();
+                }
+            }
+        };
+
+        timer.schedule(timerTaskUpdateNetStatus,0, 500);
+        timer.schedule(timerTaskReconnectToServer,0, 3000);
     }
 
     private void setupGUI(){
@@ -100,12 +118,15 @@ public class ChatClient implements Serializable {
         menuBar.add(menuSettings);
         menuBar.add(menuHelp);
 
-        //An Indicator for recieving client-list
+        //Panel for an information
+        panelInf       = new ChatClientPannellOnline();
 
+        //labelNet.setIcon();
 
         frame.setJMenuBar(menuBar);
 
         frame.add(BorderLayout.CENTER, list);
+        frame.add(BorderLayout.SOUTH, panelInf);
 
         frame.setVisible(true);
 
@@ -127,7 +148,12 @@ public class ChatClient implements Serializable {
             threadListener.start();
 
         }catch (IOException ioe) {
-            ioe.printStackTrace();
+            try {
+                if ( !Objects.isNull(socket) && socket.isConnected() )
+                    socket.close();
+            }catch (IOException e) {}
+
+            //ioe.printStackTrace();
         }
     }
 
@@ -154,7 +180,6 @@ public class ChatClient implements Serializable {
             applySettings();
         }
     }
-
 
     void sendMassage(ChatServiceCode serviceCode, String msg, CopyOnWriteArrayList<ChatUnits> units){
         if ( !Objects.isNull(socket)  &&  socket.isConnected() && !socket.isClosed()){
@@ -294,20 +319,21 @@ public class ChatClient implements Serializable {
         beforeClose();
 
         try {
-            inObj.close();
-            outObj.close();
-            socket.close();
+            if (Objects.nonNull(inObj))  { inObj.close();   inObj = null;}
+            if (Objects.nonNull(outObj)) { outObj.close();  outObj = null;}
+            if (Objects.nonNull(socket)) { socket.close();  socket = null;}
+
             isRunning = false;
 
             //Stop previous thread listener
             try {
                 Thread.sleep(60);
-            }catch (InterruptedException e) {e.printStackTrace();}
+            }catch (InterruptedException e) {}
 
             if ( threadListener.isAlive() ){
                 threadListener.interrupt();
             }
-        }catch (IOException e) {e.printStackTrace();}
+        }catch (IOException e) {}
     }
 
     public String getNameClient(){
@@ -323,9 +349,38 @@ public class ChatClient implements Serializable {
         this.settingsGeneral            = sg;
 
         if ( !Objects.equals(oldSettings.getServerIp(), settingsGeneral.getServerIp())
-                || !Objects.equals(oldSettings.getServerSocket(), settingsGeneral.getServerSocket()) ){
-            cancelNetConnrction();
-            setupNet();
+                || !Objects.equals(oldSettings.getServerSocket(), settingsGeneral.getServerSocket())
+                || Objects.isNull(socket) || socket.isClosed()){
+            reconnect();
+        }
+    }
+
+    public void setTimeOfLastServerMassage(LocalDateTime timeOfLastServerMassage) {
+        this.timeOfLastServerMassage = timeOfLastServerMassage;
+    }
+
+    public LocalDateTime getTimeOfLastServerMassage() {
+        Optional<LocalDateTime> optional = Optional.ofNullable(timeOfLastServerMassage);
+        return  optional.orElseGet(() -> LocalDateTime.now().minusSeconds(100));
+    }
+
+    private void updateNetStatus(boolean haveServerMassage){
+        LocalDateTime now       = LocalDateTime.now();
+        LocalDateTime last      = getTimeOfLastServerMassage();
+        LocalDateTime lastPlus2 = last.plusSeconds(2);
+        if ( lastPlus2.compareTo(now) < 0  ){
+            panelInf.setColorOnline(Color.RED);
+            panelInf.setConnectState(ChatConnectState.offline);
+            panelInf.setStrServer("");
+        }else{
+            panelInf.setColorOnline(Color.BLUE);
+            panelInf.setConnectState(ChatConnectState.online);
+            panelInf.setStrServer(settingsGeneral.getServerIp() + ": " + settingsGeneral.getServerSocket());
+        }
+        panelInf.repaint();
+
+        if (haveServerMassage){
+            setTimeOfLastServerMassage(LocalDateTime.now());
         }
     }
 
@@ -333,27 +388,43 @@ public class ChatClient implements Serializable {
         SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(null, s));
     }
 
+    private void reconnect(){
+        cancelNetConnrction();
+        setupNet();
+        refreshUnitList();
+        for (ChatClientWindow window : listDialogWindows) {
+            window.getFrame().dispatchEvent( new WindowEvent(window.getFrame(), WindowEvent.WINDOW_CLOSING) );
+            removeDialogWindow(window);
+        }
+    }
+
     class InputListener extends Thread {
         private int         counter = 0;
         private Thread      currenrThred;
+        private LocalDate   timeOfTheLastMassage;
 
         public InputListener() {
             super();
-            isRunning = true;
-            currenrThred = Thread.currentThread();
+            isRunning               = true;
+            currenrThred            = Thread.currentThread();
+            timeOfTheLastMassage    = LocalDate.now();
         }
 
         @Override
         public void run() {
 
 
-            while (socket.isConnected() && isRunning){
+            while (Objects.nonNull(socket) && socket.isConnected() && isRunning){
 
                 try {
                     ChatMassage massage = (ChatMassage) inObj.readObject();
                     processMassage(massage);
                 }
                 catch (SocketException e){}
+                catch (EOFException e){
+                    reconnect();}
+                catch (StreamCorruptedException e){
+                    reconnect();}
                 catch (ClassNotFoundException | IOException e) {
                     e.printStackTrace();
                 }
@@ -389,6 +460,7 @@ public class ChatClient implements Serializable {
             }else if (massage.getServiseCode() == ChatServiceCode.ClientsList){
                 listUnits = massage.getListUnits();
                 refreshUnitList();
+                updateNetStatus(true);
 
             }else if (massage.getServiseCode() == ChatServiceCode.CloseConnection){
                 isRunning = false;

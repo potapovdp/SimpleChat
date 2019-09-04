@@ -2,6 +2,7 @@ package com.chat.client;
 
 import javax.swing.*;
 import javax.swing.text.MaskFormatter;
+import javax.swing.text.NumberFormatter;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -9,6 +10,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.*;
 import java.nio.file.Path;
+import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.Objects;
 
@@ -79,19 +81,25 @@ public class ChatClientSettingsWindow {
         panelCentral.add(new JLabel("Client name:"));
         panelCentral.add(tfNameClient);
 
-        MaskFormatter mfip  = new MaskFormatter();
-        MaskFormatter mfsoc = new MaskFormatter();
+        MaskFormatter mfip      = new MaskFormatter();
+        NumberFormatter nfsoc   = new NumberFormatter();
+        NumberFormat nf         = NumberFormat.getIntegerInstance();
+        nf.setGroupingUsed(false);
+        nfsoc.setFormat(nf);
+        nfsoc.setMaximum(Short.MAX_VALUE*2 - 1);
+        nfsoc.setMinimum(1);
+        nfsoc.setAllowsInvalid(false);
+
         try {
             mfip.setMask("###.###.###.###");
-            mfsoc.setMask("#####");
+            mfip.setPlaceholderCharacter('0');
         }catch (ParseException e){
             e.printStackTrace();
         }
-//        mfip.setPlaceholder("0");
-//        mfsoc.setPlaceholder("0");
 
         tfServerIP          = new JFormattedTextField(mfip);
-        tfServerSocket      = new JFormattedTextField();
+        tfServerSocket      = new JFormattedTextField(nfsoc);
+
         panelNet.add(new JLabel("Server IP:"));
         panelNet.add(tfServerIP);
         panelNet.add(new JLabel("Server Socket:"));
@@ -159,7 +167,19 @@ public class ChatClientSettingsWindow {
         settings.setSendMassageCtrlEnter(cbCtrlEnter.isSelected());
 
         settings.setServerIp(tfServerIP.getText());
-        settings.setServerSocket(Integer.parseInt(tfServerSocket.getText()));
+
+        //Socket
+        //settings.setServerSocket( Integer.parseInt(tfServerSocket.getText().replaceAll("\\p{Zs}", "")) );
+        //tfServerSocket.;
+        Integer intSoc = Integer.parseInt( tfServerSocket.getText() );
+        if ( Objects.isNull(intSoc) ){
+            JOptionPane.showMessageDialog(tfNameClient.getTopLevelAncestor(),
+                    "A valid port number is requied.",
+                    "Cannot cteate connection",
+                    JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        settings.setServerSocket(intSoc);
 
         //Gather invisible fields
         Path pathFileSettings = settingsGeneral.getPathFileSettings();

@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="testng-6.8.21">
+    <CLASSES>
+      <root url="jar://$APPLICATION_HOME_DIR$/plugins/testng/lib/testng-6.8.21.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

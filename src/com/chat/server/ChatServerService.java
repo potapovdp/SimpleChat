@@ -179,7 +179,7 @@ public class ChatServerService {
                     }
                 }
             } catch (IOException | ClassNotFoundException e) {
-                e.printStackTrace();
+                //e.printStackTrace();
             }
         }
 
