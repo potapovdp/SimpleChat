@@ -35,6 +35,7 @@ public class ChatClient implements Serializable {
     private String                                          version;
     private Boolean                                         isRunning;
     private LocalDateTime                                   timeOfLastServerMassage;
+    private Boolean                                         isConnected;
 
     private CopyOnWriteArrayList<ChatClientWindow>          listDialogWindows;
 
@@ -69,7 +70,7 @@ public class ChatClient implements Serializable {
         TimerTask timerTaskReconnectToServer = new TimerTask() {
             @Override
             public void run() {
-                if ( Objects.nonNull(socket) && (socket.isClosed()) ){
+                if ( ( Objects.nonNull(socket) && (socket.isClosed()) ) || !isConnected ){
                     reconnect();
                 }
             }
@@ -200,22 +201,24 @@ public class ChatClient implements Serializable {
     }
 
     private void refreshUnitList(){
-        for (ChatUnits unit : listUnits) {
-            if (!listModel.contains(unit))
-                listModel.addElement(unit);
-        }
-
-        //collect disconnected clients
-        ArrayList<ChatUnits> arrTmp = new ArrayList<>();
-        for (int i = 0; i < listModel.size(); i++) {
-            if (!listUnits.contains(listModel.get(i))){
-                arrTmp.add(listModel.get(i));
+        if ( Objects.nonNull(listUnits)){
+            for (ChatUnits unit : listUnits) {
+                if (!listModel.contains(unit))
+                    listModel.addElement(unit);
             }
-        }
 
-        //remove disconnected clients
-        for (ChatUnits unit : arrTmp) {
-            listModel.removeElement(unit);
+            //collect disconnected clients
+            ArrayList<ChatUnits> arrTmp = new ArrayList<>();
+            for (int i = 0; i < listModel.size(); i++) {
+                if (!listUnits.contains(listModel.get(i))){
+                    arrTmp.add(listModel.get(i));
+                }
+            }
+
+            //remove disconnected clients
+            for (ChatUnits unit : arrTmp) {
+                listModel.removeElement(unit);
+            }
         }
     }
 
@@ -364,15 +367,18 @@ public class ChatClient implements Serializable {
         return  optional.orElseGet(() -> LocalDateTime.now().minusSeconds(100));
     }
 
+    //haveServerMassage - for indicate incoming massage of server
     private void updateNetStatus(boolean haveServerMassage){
         LocalDateTime now       = LocalDateTime.now();
         LocalDateTime last      = getTimeOfLastServerMassage();
         LocalDateTime lastPlus2 = last.plusSeconds(2);
         if ( lastPlus2.compareTo(now) < 0  ){
+            isConnected = false;
             panelInf.setColorOnline(Color.RED);
             panelInf.setConnectState(ChatConnectState.offline);
             panelInf.setStrServer("");
         }else{
+            isConnected = true;
             panelInf.setColorOnline(Color.BLUE);
             panelInf.setConnectState(ChatConnectState.online);
             panelInf.setStrServer(settingsGeneral.getServerIp() + ": " + settingsGeneral.getServerSocket());
