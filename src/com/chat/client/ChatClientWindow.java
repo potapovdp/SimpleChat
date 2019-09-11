@@ -1,4 +1,7 @@
 package com.chat.client;
+/*
+It's old version for text massage only
+ */
 
 import com.chat.server.ChatUnits;
 import com.chat.server.ChatServiceCode;
@@ -15,11 +18,17 @@ public class ChatClientWindow implements Serializable {
     private transient JFrame                            frame;
     private transient JTextArea                         taCommon;
     private transient JTextArea                         taPrivate;
+    private transient JToggleButton                     tbBold;
+    private transient JToggleButton                     tbItalic;
 
     private ChatClient                                  client;     //host of this dialog window
     private CopyOnWriteArrayList<ChatUnits>             listUnits;  //list of units for a conversation
-    private ChatClientWindow                            window;     //tis object for identify it in host
+    private ChatClientWindow window;     //tis object for identify it in host
     private ChatClientSettings                          settingsGeneral;
+
+    private final int                                   FRAME_WIDTH = 500;
+
+    ChatClientWindow(){}
 
     ChatClientWindow(ChatClient client, CopyOnWriteArrayList<ChatUnits> listUnits, ChatClientSettings settings) {
         this.client             = client;
@@ -89,10 +98,44 @@ public class ChatClientWindow implements Serializable {
             public void keyReleased(KeyEvent e) {}
         });
 
+        //Font settings *******************************
+        //Icons for font buttons
+        //ImageIcon iFontItalic   = new ImageIcon(new File("").getAbsolutePath().concat("\\FontI.png") );
+        ImageIcon iFontBold     = new ImageIcon("resources\\FontB.png");
+        ImageIcon iFontItalic   = new ImageIcon("resources\\FontI.png");
+        //Image imFontItalic       = new BufferedImage();
+
+        //Listener for buttons
+        ButtonListener buttonListener = new ButtonListener();
+
+        //Buttons for font
+        tbBold   = new JToggleButton();
+        tbBold.setIcon(iFontBold);
+        tbBold.setPreferredSize(new Dimension(30, 30));
+        tbBold.setMaximumSize(new Dimension(30, 30));
+        tbBold.setActionCommand("FontBold");
+        tbBold.addActionListener(buttonListener);
+
+        tbItalic  = new JToggleButton();
+        tbItalic.setPreferredSize(new Dimension(30, 30));
+        tbItalic.setMaximumSize(new Dimension(30, 30));
+        tbItalic.setIcon(iFontItalic);
+        tbItalic.setActionCommand("FontItalic");
+        tbItalic.addActionListener(buttonListener);
+
+        //Panel for font settings
+        JPanel panelFont = new JPanel();
+        panelFont.setLayout(new BoxLayout(panelFont, BoxLayout.LINE_AXIS));
+        panelFont.setMaximumSize(new Dimension(FRAME_WIDTH, 50));
+        panelFont.add(tbBold);
+        panelFont.add(tbItalic);
+
+        //General panel
         JPanel panel = new JPanel();
         BoxLayout boxLayout = new BoxLayout(panel, BoxLayout.Y_AXIS);
         panel.setLayout(boxLayout);
         panel.add(spCommon);
+        panel.add(panelFont);
         panel.add(spPrivate);
         frame.getContentPane().add(panel, BorderLayout.CENTER);
 
@@ -100,7 +143,7 @@ public class ChatClientWindow implements Serializable {
         bSend.addActionListener((e)  ->  sendMassage(null,"") );
 
         frame.add(bSend, BorderLayout.SOUTH);
-        frame.setSize(new Dimension(500, 550));
+        frame.setSize(new Dimension(FRAME_WIDTH, 550));
         frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 
         //frame.pack();
@@ -148,7 +191,6 @@ public class ChatClientWindow implements Serializable {
         return listUnits;
     }
 
-
     class WindowCloseListener implements WindowListener{
         @Override
         public void windowOpened(WindowEvent e) {}
@@ -175,6 +217,22 @@ public class ChatClientWindow implements Serializable {
         @Override
         public void windowDeactivated(WindowEvent e) {
             //System.out.println("windowDeactivated");
+        }
+    }
+
+    class ButtonListener implements ActionListener{
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            Font curFont = taPrivate.getFont();
+
+            if (tbBold.isSelected() && tbItalic.isSelected())
+                taPrivate.setFont(curFont.deriveFont(Font.BOLD | Font.ITALIC));
+            else if(tbBold.isSelected() && !tbItalic.isSelected())
+                taPrivate.setFont(curFont.deriveFont(Font.BOLD));
+            else if(!tbBold.isSelected() && tbItalic.isSelected())
+                taPrivate.setFont(curFont.deriveFont(Font.ITALIC));
+            else
+                taPrivate.setFont(curFont.deriveFont(Font.PLAIN));
         }
     }
 

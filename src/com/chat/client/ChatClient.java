@@ -90,6 +90,7 @@ public class ChatClient implements Serializable {
         list                                    = new JList(listModel);
         list.addMouseListener(new MyMouseListener());
 
+        //Menu *******************************
         //menu - settings
         ButtonListener buttonListener = new ButtonListener();
 
